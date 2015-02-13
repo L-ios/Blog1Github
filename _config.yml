@@ -1,8 +1,8 @@
 title: Blog4DL
 layout: post
 tagline: Site Tagline
+baseurl: /Blog4DL
 ecoding: utf-8
-base-url: .
 author:
     name: Lionseun Ling
     email: lionseun@gmail.com
