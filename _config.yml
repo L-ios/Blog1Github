@@ -5,14 +5,14 @@
 # Site
 title: Blog4DL
 subtitle: just4practise
-description:
+description: some learn note and fixed error
 author: Lionseun Ling
 language: zh-CN
 timezone: Asia/Hong_Kong
 
 # URL
 ## If your site is put in a subdirectory, set url as 'http://yoursite.com/child' and root as '/child/'
-url: http://yoursite.com
+url: https://l-ios.github.io/Blog4DL
 root: /
 permalink: :year/:month/:day/:title/
 permalink_defaults:
