@@ -210,10 +210,10 @@ final boolean resumeTopActivityInnerLocked(ActivityRecord prev, Bundle options) 
     }
 
     ActivityStack lastStack = mStackSupervisor.getLastStack();
-    ... 
+    ...
             next.app.thread.scheduleResumeActivity(next.appToken, next.app.repProcState,
                     mService.isNextTransitionForward(), resumeAnimOptions);
 
 }
-
 ```
+在resumeTopActivityInnerLocked中，我们需要重新启动一个新ApplicationThread来执行启动应用的事物，

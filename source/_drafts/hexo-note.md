@@ -1,0 +1,31 @@
+title: hexo note
+tags: learn, blog
+-----------------
+
+记录学习hexo的一些命令
+-------------------
+
+这里主要是记录使用hexo记录的一些命令，为了防止在忘记了命令后快速的找到记录
+
+#### 初始化目录为hexo文件目录
+```
+hexo init
+```
+
+#### 新建文章
+
+```
+Usage: hexo new [layout] <title>
+
+Arguments:
+  layout  Post layout. Use post, page, draft or whatever you want.
+  title   Post title. Wrap it with quotations to escape.
+
+```
+
+#### 在浏览器中查看
+
+在hexo初始化的根目录执行
+```
+hexo server
+```
