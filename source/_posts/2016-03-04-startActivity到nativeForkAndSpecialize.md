@@ -216,4 +216,45 @@ final boolean resumeTopActivityInnerLocked(ActivityRecord prev, Bundle options) 
 
 }
 ```
-在resumeTopActivityInnerLocked中，我们需要重新启动一个新ApplicationThread来执行启动应用的事物，
+在resumeTopActivityInnerLocked中，我们需要重新启动一个新ApplicationThread来执行启动应用
+的线程，而scheduleResumeActivity又是属于ApplicationThread的方法，而ApplicationThread的
+父类ApplicationThreadNative有时IApplicationThread的子类，然而这里又通过了发送Handler消
+息来进行后续的操作，其代码如下：
+```
+// #=file=> frameworks/base/core/java/android/app/ActivityThread.java
+// #=class=> private class ApplicationThread extends ApplicationThreadNative
+
+public final void scheduleResumeActivity(IBinder token, int processState,
+        boolean isForward, Bundle resumeArgs) {
+    updateProcessState(processState, false);
+    sendMessage(H.RESUME_ACTIVITY, token, isForward ? 1 : 0);
+}
+
+// #=file=> frameworks/base/core/java/android/app/ApplicationThreadNative.java
+// #=class=> class ApplicationThreadProxy implements IApplicationThread {
+
+public final void scheduleResumeActivity(IBinder token, int procState, boolean isForward,
+        Bundle resumeArgs)
+        throws RemoteException {
+    Parcel data = Parcel.obtain();
+    data.writeInterfaceToken(IApplicationThread.descriptor);
+    data.writeStrongBinder(token);
+    data.writeInt(procState);
+    data.writeInt(isForward ? 1 : 0);
+    data.writeBundle(resumeArgs);
+    mRemote.transact(SCHEDULE_RESUME_ACTIVITY_TRANSACTION, data, null,
+            IBinder.FLAG_ONEWAY);
+    data.recycle();
+}
+```
+有了sendMessage后，就一定有一个handleMessage(),而在这里面，我们只需要关心一点儿就是switch中
+的RESUME_ACTIVITY条件下的东西。
+```
+case RESUME_ACTIVITY:
+    Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "activityResume");
+    handleResumeActivity((IBinder) msg.obj, true, msg.arg1 != 0, true);
+    Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
+    break;
+```
+这里我们就看到了一个Binder对象了，这里就会接收ApplicationThreadProxy中scheduleResumeActivity
+发送的消息。
