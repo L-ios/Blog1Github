@@ -215,5 +215,5 @@ final boolean resumeTopActivityInnerLocked(ActivityRecord prev, Bundle options) 
                     mService.isNextTransitionForward(), resumeAnimOptions);
 
 }
-
 ```
+在resumeTopActivityInnerLocked中，我们需要重新启动一个新ApplicationThread来执行启动应用的事物，
