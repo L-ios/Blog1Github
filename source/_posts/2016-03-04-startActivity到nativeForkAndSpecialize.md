@@ -183,7 +183,7 @@ final int startActivityLocked(IApplicationThread caller,
             -1, -1, -1, callingPackage,
             realCallingPid, realCallingUid, 0, null,
             true, null, null, null);
-    */
+    *                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         m                                                                                                                                                                                                                                                                                                                                                                                                                                   /
     int err = ActivityManager.START_SUCCESS;
 
     ...
@@ -210,7 +210,7 @@ final boolean resumeTopActivityInnerLocked(ActivityRecord prev, Bundle options) 
     }
 
     ActivityStack lastStack = mStackSupervisor.getLastStack();
-    ... 
+    ...
             next.app.thread.scheduleResumeActivity(next.appToken, next.app.repProcState,
                     mService.isNextTransitionForward(), resumeAnimOptions);
 
