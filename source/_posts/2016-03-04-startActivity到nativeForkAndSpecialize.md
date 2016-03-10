@@ -6,7 +6,131 @@ tags: Android, Android framework
 背景： 因为奇酷手机开发出了双微信，通过反编译奇酷手机代码，发现需要了解手机中的startActivity,
 代码背景： AOSP 5.1 for shamu
 
-### Launcher 启动应用分析
+### Launcher 启动应用分析,OnClick到Acitivity.java中的startActivity
+```
+// #=> in Launcher.java , in Launcher class
+public void onClick(View v) {
+    ......
+    Object tag = v.getTag();
+    if (tag instanceof ShortcutInfo) {
+        onClickAppShortcut(v);
+    } else if (tag instanceof FolderInfo) {
+    ......
+    }
+}
+```
+在第6行执行应用的启动动作。
+```
+/* Event handler for an app shortcut click.
+    这里考虑了特殊的图标的问题，不需要考虑太多，这里可以把函数忽略为如下结构*/
+protected void onClickAppShortcut(final View v) {
+    ......
+    // Start activities
+    startAppShortcutOrInfoActivity(v);
+    ......
+}
+```
+在第6行启动应用的，这个函数中还判断了点击的图标是不是应用，判断一下点击的是不是一些特殊的类
+```
+/* 这里主要是在设置应用的启动动画，以及启动的应用的intent*/
+private void startAppShortcutOrInfoActivity(View v) {
+    Object tag = v.getTag();
+    final ShortcutInfo shortcut;
+    final Intent intent;
+    if (tag instanceof ShortcutInfo) {
+        shortcut = (ShortcutInfo) tag;
+        intent = shortcut.intent;
+        int[] pos = new int[2];
+        v.getLocationOnScreen(pos);
+        intent.setSourceBounds(new Rect(pos[0], pos[1],
+                pos[0] + v.getWidth(), pos[1] + v.getHeight()));
+
+    } else if (tag instanceof AppInfo) {
+        intent = ((AppInfo) tag).intent;
+    } else {
+        ......
+    }
+
+    boolean success = startActivitySafely(v, intent, tag);
+}
+```
+在这个函数中我们继续解封装，这里我们就看到了点击而启动应用的intent，在这个intent中有三个域是我们需要关心的
+-   mAction(mAction = android.intent.action.MAIN)
+-   mCategories(mCategories = android.intent.category.LAUNCHER)
+-   mComponent(其中的mClass是启动应用的主Activity类名，mpackage是包名)
+
+在20行，通过看方法名就可以猜想到这是封装了Activity.java中的startActivity用于防止无法无法启动应用，
+而防止桌面挂掉。进行安全的启动活动，并且桌面在通过桌面图标启动应用的时候，只用关系是否启动成功。
+
+```
+boolean startActivitySafely(View v, Intent intent, Object tag) {
+    boolean success = false;
+    ......
+    try {
+        success = startActivity(v, intent, tag);
+    } catch (ActivityNotFoundException e) {
+        ......
+    }
+    return success;
+}
+```
+这里
+```
+boolean startActivity(View v, Intent intent, Object tag) {
+    Log.e(TAG + "lingyang", "for test");
+    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+    try {
+        // Only launch using the new animation if the shortcut has not opted out (this is a
+        // private contract between launcher and may be ignored in the future).
+        boolean useLaunchAnimation = (v != null) &&
+                !intent.hasExtra(INTENT_EXTRA_IGNORE_LAUNCH_ANIMATION);
+        LauncherAppsCompat launcherApps = LauncherAppsCompat.getInstance(this);
+        UserManagerCompat userManager = UserManagerCompat.getInstance(this);
+
+        UserHandleCompat user = null;
+        if (intent.hasExtra(AppInfo.EXTRA_PROFILE)) {
+            long serialNumber = intent.getLongExtra(AppInfo.EXTRA_PROFILE, -1);
+            user = userManager.getUserForSerialNumber(serialNumber);
+        }
+
+        Bundle optsBundle = null;
+        if (useLaunchAnimation) {
+            ActivityOptions opts = Utilities.isLmpOrAbove() ?
+                    ActivityOptions.makeCustomAnimation(this, R.anim.task_open_enter, R.anim.no_anim) :
+                    ActivityOptions.makeScaleUpAnimation(v, 0, 0, v.getMeasuredWidth(), v.getMeasuredHeight());
+            optsBundle = opts.toBundle();
+        }
+
+        if (user == null || user.equals(UserHandleCompat.myUserHandle())) {
+            // Could be launching some bookkeeping activity
+            startActivity(intent, optsBundle);
+        } else {
+            // TODO Component can be null when shortcuts are supported for secondary user
+            launcherApps.startActivityForProfile(intent.getComponent(), user,
+                    intent.getSourceBounds(), optsBundle);
+        }
+        return true;
+    } catch (SecurityException e) {
+        Toast.makeText(this, R.string.activity_not_found, Toast.LENGTH_SHORT).show();
+        Log.e(TAG, "Launcher does not have the permission to launch " + intent +
+                ". Make sure to create a MAIN intent-filter for the corresponding activity " +
+                "or use the exported attribute for this activity. "
+                + "tag="+ tag + " intent=" + intent, e);
+    }
+    return false;
+}
+```
+
+
+
+
+
+
+
+
+
+
+
 当我们在手机桌面点击了应用图标的时候，这时候就会触发Laucher.java 中的 onClick(View view) 方
 法，然后构建intent，利用Launcher.java中封装的startActivitySafely()来启动应用。
 
