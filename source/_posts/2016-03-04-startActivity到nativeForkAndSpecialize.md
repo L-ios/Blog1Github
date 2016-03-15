@@ -14,9 +14,7 @@ public void onClick(View v) {
     Object tag = v.getTag();
     if (tag instanceof ShortcutInfo) {
         onClickAppShortcut(v);
-    } else if (tag instanceof FolderInfo) {
-    ......
-    }
+    } else if (tag instanceof FolderInfo) {......}
 }
 ```
 在第6行执行应用的启动动作。
@@ -47,10 +45,7 @@ private void startAppShortcutOrInfoActivity(View v) {
 
     } else if (tag instanceof AppInfo) {
         intent = ((AppInfo) tag).intent;
-    } else {
-        ......
-    }
-
+    } else {......}
     boolean success = startActivitySafely(v, intent, tag);
 }
 ```
@@ -68,134 +63,82 @@ boolean startActivitySafely(View v, Intent intent, Object tag) {
     ......
     try {
         success = startActivity(v, intent, tag);
-    } catch (ActivityNotFoundException e) {
-        ......
-    }
+    } catch (ActivityNotFoundException e) {......}
     return success;
 }
 ```
-这里
+这里会判断是否在安全模式，或者是否为系统应用云云之类的。
 ```
 boolean startActivity(View v, Intent intent, Object tag) {
-    Log.e(TAG + "lingyang", "for test");
     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
     try {
-        // Only launch using the new animation if the shortcut has not opted out (this is a
-        // private contract between launcher and may be ignored in the future).
-        boolean useLaunchAnimation = (v != null) &&
-                !intent.hasExtra(INTENT_EXTRA_IGNORE_LAUNCH_ANIMATION);
-        LauncherAppsCompat launcherApps = LauncherAppsCompat.getInstance(this);
-        UserManagerCompat userManager = UserManagerCompat.getInstance(this);
-
-        UserHandleCompat user = null;
-        if (intent.hasExtra(AppInfo.EXTRA_PROFILE)) {
-            long serialNumber = intent.getLongExtra(AppInfo.EXTRA_PROFILE, -1);
-            user = userManager.getUserForSerialNumber(serialNumber);
-        }
-
         Bundle optsBundle = null;
-        if (useLaunchAnimation) {
-            ActivityOptions opts = Utilities.isLmpOrAbove() ?
-                    ActivityOptions.makeCustomAnimation(this, R.anim.task_open_enter, R.anim.no_anim) :
-                    ActivityOptions.makeScaleUpAnimation(v, 0, 0, v.getMeasuredWidth(), v.getMeasuredHeight());
-            optsBundle = opts.toBundle();
-        }
-
+        .......
         if (user == null || user.equals(UserHandleCompat.myUserHandle())) {
             // Could be launching some bookkeeping activity
             startActivity(intent, optsBundle);
-        } else {
-            // TODO Component can be null when shortcuts are supported for secondary user
-            launcherApps.startActivityForProfile(intent.getComponent(), user,
-                    intent.getSourceBounds(), optsBundle);
-        }
+        } else {......}
         return true;
-    } catch (SecurityException e) {
-        Toast.makeText(this, R.string.activity_not_found, Toast.LENGTH_SHORT).show();
-        Log.e(TAG, "Launcher does not have the permission to launch " + intent +
-                ". Make sure to create a MAIN intent-filter for the corresponding activity " +
-                "or use the exported attribute for this activity. "
-                + "tag="+ tag + " intent=" + intent, e);
-    }
+    } catch (SecurityException e) {......}
     return false;
 }
 ```
 
-
-
-
-
-
-
-
-
-
-
-当我们在手机桌面点击了应用图标的时候，这时候就会触发Laucher.java 中的 onClick(View view) 方
-法，然后构建intent，利用Launcher.java中封装的startActivitySafely()来启动应用。
-
-Launcher为了我们启动应用的intent添加了标志:FLAG_ACTIVITY_NEW_TASK，表示启动一个应用的时候，重新建立一个任务（Android中任务应该就是我们所说的进程）
-
-Launcher.java对Activity的startActivity的封装中，我们只需要关心两点：
-- 有动画的startActivity，这种方式调用的是startActivity(Intent intent, Bundle options);
-- 无动画的startActivity，这种方式调用的是startActivity(Intent intent),最后也调用到了上一种startActivity，只是options = null;
-
+intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);为将要启动的应用标记为新建任务，也就是表示将要新启动
+一个应用,这里传入了optsBundle,optsBundle这里是作为Activity启动的启动动画，或者可以认为是过渡动画。这里
+通过捕获的异常还可以发现，启动应用有可能引发权限的问题。在8行调用的startActivity就是Activity中的，也就是
+属于系统了。
+现在我们看到启动应用有两个参数是需要关心的：
+-   intent(Intent)
+-   optsBundle(Bundle)
+启动optsBundle根据前面的分析，这里是属于启动动画，本次研究中可以不用关心，可以看作为null，然而intent就是
+最主要一个参数了，根据前面我们说的intent，此处它有多了一个Flags。
 
 ### Activity.java 启动应用分析
-现在接收到了Launcher的startActivity输入，接着调用startActivityForResult，这里的requestCode = -1，表示不要求返回结果，且这里选择options = null进行分析，
-
 ```
-public void startActivityForResult(Intent intent, int requestCode, @Nullable Bundle options) {
-    if (mParent == null) {  // #=> 从桌面启动，所以mParent不为null
-        ...
+public void startActivity(Intent intent) {
+    this.startActivity(intent, null);
+}
+public void startActivity(Intent intent, @Nullable Bundle options) {
+    if (options != null) {
+        startActivityForResult(intent, -1, options);
     } else {
-        if (options != null) {
-            mParent.startActivityFromChild(this, intent, requestCode, options);
-        } else {
-            mParent.startActivityFromChild(this, intent, requestCode);
-        }
-    }
-    if (options != null && !isTopOfTask()) {
-        mActivityTransitionState.startExitOutTransition(this, options);
+        startActivityForResult(intent, -1);
     }
 }
 ```
-因为是从Launcher中启动，且options = null，所以我们只看 mParent.startActivityFromChild(this, intent, requestCode)
-在startActivityFromChild中，其构造是这样的，
+这里贴出的两个startActivity中，第一个是比较常用的，也是笔者学习android是调用Activity时使用的，
+都可以调用处应用，所以才在前面说optsBundle可以看作为null，通过上面的代码，在调用startActivityForResult，
+参数requestCode = -1，表示不要求返回结果，且这里选择options = null进行分析，
 ```
-public void startActivityFromChild(@NonNull Activity child, Intent intent,
-        int requestCode, @Nullable Bundle options) {
-    Instrumentation.ActivityResult ar =
-        mInstrumentation.execStartActivity(
-            this, mMainThread.getApplicationThread(), mToken, child,
-            intent, requestCode, options);
-    if (ar != null) {
-        mMainThread.sendActivityResult(
-            mToken, child.mEmbeddedID, requestCode,
-            ar.getResultCode(), ar.getResultData());
-    }
+public void startActivityForResult(Intent intent, int requestCode) {
+    startActivityForResult(intent, requestCode, null);
+}
+public void startActivityForResult(Intent intent, int requestCode /* -1 */, @Nullable Bundle options) {
+    if (mParent == null) {
+        // 此处mParent为空，因为mParent的赋值存在域setParent和attach中，这两个方法都未进行调用，所以，为空
+        // mParent是Activity类
+        Instrumentation.ActivityResult ar =
+            mInstrumentation.execStartActivity(
+                this, mMainThread.getApplicationThread(), mToken, this,
+                intent, requestCode, options);
+        if (ar != null) {......}
+    } else {......}
 }
 ```
-这里ar = null, 所以这里的sendActivityResult是不会执行的。通过下面的代码，来看ar = null
+mInstrumentatin是Activity的一个域，且通过观察Instrumentation中的execStartActivity,发现
+这里有一个域是需要我们关心的，也就是mActivityMonitors,其是通过查看与之相关的addMonitor方法发
+现，是通过这个方法来进行赋值和元素的添加，但是addMonitor在此之前是不会被调用的，所以
+mActivityMonitors = null,返回值也为null。mMainThread.getApplicationThrad()取得应用线
+程，mToken则是与ActivityManagerService进行通信的IBinder(IApplicationThread)实例。通过下面的代码我们可以看到在
+ActivityManagerProxy中的startActivity进行启动应用的信息发送。
 ```
 public ActivityResult execStartActivity(
         Context who, IBinder contextThread, IBinder token, Activity target, // #=> who = target
         Intent intent, int requestCode, Bundle options) {   // #=>intent, -1, null
     IApplicationThread whoThread = (IApplicationThread) contextThread;
     if (mActivityMonitors != null) {
-        synchronized (mSync) {
-            final int N = mActivityMonitors.size();  //#=> 在桌面启动应用中，mActivityMonitors.size = 0;
-            for (int i=0; i<N; i++) {
-                final ActivityMonitor am = mActivityMonitors.get(i);
-                if (am.match(who, null, intent)) {
-                    am.mHits++;
-                    if (am.isBlocking()) {  // #=> always true;
-                        return requestCode >= 0 ? am.getResult() : null;
-                    }
-                    break;
-                }
-            }
-        }
+        ......
     }
     try {
         ...
@@ -210,12 +153,52 @@ public ActivityResult execStartActivity(
     return null;
 }
 ```
-从上面的代码中，我么就可以看出ar ！= null的判断是由mActivityMonitors有关联的，然而mActivityMonitors中的元素，
-却是在addMonitor()中进行添加的，但是addMonitor却没有实质的调点，所以返回execStartActivity
-返回null。
+ActivityManagerNative.getDefault()取得IActivityManager实例，这个实例是一个系统全局的实例，
+，其采用了单例模式，它是一个Binder通信的接口，然后进行启动应用的信息发送。下面的startActivity就
+是进行消息的发送。
+```
+// #=> path: frameworks/base/core/java/android/app/ActivityManagerNative.java
+// #=> class: ActivityManagerProxy.class
+public int startActivity(IApplicationThread caller, String callingPackage, Intent intent,
+        String resolvedType, IBinder resultTo, String resultWho, int requestCode,
+        int startFlags, ProfilerInfo profilerInfo, Bundle options) throws RemoteException {
+    Parcel data = Parcel.obtain();
+    Parcel reply = Parcel.obtain();
+    data.writeInterfaceToken(IActivityManager.descriptor);
+    data.writeStrongBinder(caller != null ? caller.asBinder() : null);
+    data.writeString(callingPackage);
+    intent.writeToParcel(data, 0);
+    data.writeString(resolvedType);
+    data.writeStrongBinder(resultTo);
+    data.writeString(resultWho);
+    data.writeInt(requestCode);
+    data.writeInt(startFlags);
+    if (profilerInfo != null) {
+        data.writeInt(1);
+        profilerInfo.writeToParcel(data, Parcelable.PARCELABLE_WRITE_RETURN_VALUE);
+    } else {
+        data.writeInt(0);
+    }
+    if (options != null) {
+        data.writeInt(1);
+        options.writeToParcel(data, 0);
+    } else {
+        data.writeInt(0);
+    }
+    mRemote.transact(START_ACTIVITY_TRANSACTION, data, reply, 0);
+    reply.readException();
+    int result = reply.readInt();
+    reply.recycle();
+    data.recycle();
+    return result;
+}
+```
+利用mRemote进行消息的发送与服务关联，通过，reply来获取服务的返回值，也就是startActivity的返回
+值。接下来将剖析服务层的startActivity————ActivityManagerService中的startActivity。
 
-ActivityManagerNative.getDefault()取得全局IActivityManager对象,这个对象是一个ActivityManagerProxy对象，我们需
-要这个Binder对象调用ActivityManagerService中的startActivity。
+### ActivityManagerService中的startActivity
+因为是采用Binder进行通信的，所以在onTransact可以看到上面data的解析以及startActivity的调用。
+下面是ActivityManagerService中的startActivity，系统服务中启动应用的起点。
 ```
 public final int startActivity(IApplicationThread caller, String callingPackage,
         Intent intent, String resolvedType, IBinder resultTo, String resultWho, int requestCode,
@@ -232,14 +215,19 @@ public final int startActivityAsUser(IApplicationThread caller, String callingPa
     enforceNotIsolatedCaller("startActivity");
     userId = handleIncomingUser(Binder.getCallingPid(), Binder.getCallingUid(), userId,
             false, ALLOW_FULL_ONLY, "startActivity", null);
-    // TODO: Switch to user app stacks here.
     return mStackSupervisor.startActivityMayWait(caller, -1, callingPackage, intent,
             resolvedType, null, null, resultTo, resultWho, requestCode, startFlags,
             profilerInfo, null, null, options, userId, null, null);
 }
 ```
-在startActivityAsUser中，可以看出activity的调用管理现在走到了栈（activity栈）的管理处去了
-
+在startActivity中的UserHandle.getCallingUserId()是通过调用者的user id来取得，但是一般都
+是返回 <= 0的数字，在startActivityAsUser中，通过调用handleIncomingUser会将userId进行初始
+化，这里根据应用从launcher启动，分析此方法得知更新后的userId是0，然后ActivityManagerService
+将启动Activity的任务交送给Activity栈管理着（ActivityStackSupervisor)。
+<!--todo 观察其参数的对应，发现callingUid被传入了-1，没有采用Binder.getCallingUid()（感到奇怪）
+-->
+在上面resolvedType, resultWho, profilerInfo都是为null的，以及options，我们也可以看作为null。
+<!-- 在这里是不是需要改造aInfo中的内容，也就是lib指向的地址 -->
 ```
 final int startActivityMayWait(IApplicationThread caller, int callingUid,
         String callingPackage, Intent intent, String resolvedType,
@@ -247,14 +235,7 @@ final int startActivityMayWait(IApplicationThread caller, int callingUid,
         IBinder resultTo, String resultWho, int requestCode, int startFlags,
         ProfilerInfo profilerInfo, WaitResult outResult, Configuration config,
         Bundle options, int userId, IActivityContainer iContainer, TaskRecord inTask) {
-    /*
-    return mStackSupervisor.startActivityMayWait(caller, -1,
-                            callingPackage, intent, resolvedType,
-                            null, null,
-                            resultTo, resultWho, -1, 0,
-            null, null, null, null, userId, null, null);*/
-
-    // Collect information about the target of the Intent.
+    // 这里是根据intent查询获得与之相应的ActivityInfo，
     ActivityInfo aInfo = resolveActivity(intent, resolvedType, startFlags,
             profilerInfo, userId);
 
@@ -317,6 +298,33 @@ final int startActivityLocked(IApplicationThread caller,
     ...
     return err;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ```
 在startActivityUncheckedLocked中，会通过判断startFlags来判断Activity的启动方式，也就是前面在为intent置下FLAG_ACTIVITY_NEW_TASK
