@@ -1,8 +1,12 @@
 title: 利用Drawable来实现Launcher图标动画
 
 date: 2015-09-15 21:05:32
-
-tags: Android
+updated: 2015-09-20 20:22:20
+comments: true
+categories:
+- Diary
+tags:
+- Android
 -------------
 
 目标：实现桌面的时钟图标的更换，以及实现实时显示时间
