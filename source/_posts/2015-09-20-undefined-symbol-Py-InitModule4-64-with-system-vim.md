@@ -2,7 +2,10 @@ title: 'undefined symbol: Py_InitModule4_64 with system vim'
 
 date: 2015-09-20 23:24:29
 
-tags: Linux, Ubuntu, Vim
+tags:
+    - Linux
+    - Ubuntu
+    - Vim
 ---
 
 ### 背景

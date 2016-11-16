@@ -4,7 +4,9 @@ title: learn Android Loader
 
 date: 2015-09-21 20:39:16
 
-tags: Android, Loader
+tags:
+    - Android
+    - Loader
 ---
 
 ### 阅读笔记（来之官方文档）
@@ -15,4 +17,3 @@ tags: Android, Loader
     -   c) 存在一个Loader子类实例，例如CursorLoader
     -   d) 一种可以显示Loader数据格式的方式，例如SimpleCursorLoader
     -   e) 数据源，如果采用的是CursorLoader，就应当采用ContentProvider
-

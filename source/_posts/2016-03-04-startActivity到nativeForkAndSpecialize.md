@@ -1,6 +1,8 @@
 title: startActivity到nativeForkAndSpecialize
 date: 2016-03-04 10:11:28
-tags: Android, Android framework
+tags:
+    - Android
+    - Android framework
 ---
 
 背景： 因为奇酷手机开发出了双微信，通过反编译奇酷手机代码，发现需要了解手机中的startActivity,

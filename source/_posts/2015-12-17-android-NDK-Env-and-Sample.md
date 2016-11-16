@@ -1,6 +1,9 @@
 title: android_NDK_Env_and_Sample
 date: 2015-12-17 00:38:17
-tags:
+tags :
+    - Android
+    - Android Studio
+    - NDK
 ---
 
 ### Android Studio 中NDK的环境搭建

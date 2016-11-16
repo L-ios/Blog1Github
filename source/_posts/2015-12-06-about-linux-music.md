@@ -2,7 +2,8 @@ title: about linux music
 
 date: 2015-12-06 00:39:57
 
-tags: music
+tags:
+    - music
 -----------
 
 linux下音乐文件处理
